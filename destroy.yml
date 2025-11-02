@@ -1,0 +1,38 @@
+---
+- name: Destroy
+  hosts: localhost
+  connection: local
+  gather_facts: false
+  # no_log: "{{ molecule_no_log }}"
+  vars_files:
+    - vars.yml
+  tasks:
+    - name: Destroy test vms
+      community.general.terraform:
+        binary_path: /usr/bin/tofu
+        project_path: "{{ lookup('env', 'HOME') }}/.molecule/opentofu/test_vms"
+        state: absent
+        variables:
+          distro: "{{ item.name }}"
+          template_id: "{{ item.image }}"
+          scenario: "{{ lookup('env', 'MOLECULE_SCENARIO_NAME') }}"
+          proxmox_user: "{{ proxmox_user }}"
+          proxmox_password: "{{ proxmox_password }}"
+      loop: "{{ molecule_yml.platforms }}"
+      register: server
+
+    # Mandatory configuration for Molecule to function.
+
+    - name: Populate instance config
+      ansible.builtin.set_fact:
+        instance_conf: {}
+
+    - name: Dump instance config
+      ansible.builtin.copy:
+        content: |
+          # Molecule managed
+
+          {{ instance_conf | to_json | from_json | to_yaml }}
+        dest: "{{ molecule_instance_config }}"
+        mode: "0600"
+      when: server.changed | default(false) | bool  # noqa no-handler

@@ -1,0 +1,21 @@
+---
+
+# Purpose: bring the instance to the desired state by running the role under test.
+# Molecule calls this playbook with `molecule converge`.
+#
+- name: Converge
+  hosts: all
+  gather_facts: true # Disable if your role does not rely on facts
+  vars_files:
+    - vars.yml
+  tasks:
+    - name: Check for flag file
+      ansible.builtin.stat:
+        path: "{{ example_flag_file }}"
+      register: flag_stat
+
+    - name: Ensure flag file exists
+      ansible.builtin.file:
+        path: "{{ example_flag_file }}"
+        state: touch
+      when: not flag_stat.stat.exists

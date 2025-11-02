@@ -1,0 +1,11 @@
+---
+
+example_flag_file: /tmp/hello-tofu-delegate
+ssh_user: "{{ lookup('env', 'USER') }}"
+ssh_port: 22
+ssh_privkey_path: "{{ lookup('env', 'HOME') }}/.ssh/id_ed25519"
+proxmox_user: <molecule-user>@pve
+proxmox_password: <molecule-user password>
+tofu_project_repo: https://github.com/haxwithaxe/tofu-proxmox-molecule-delegate.git
+tofu_project_version: example
+

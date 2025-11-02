@@ -1,0 +1,14 @@
+---
+# Purpose: assert that the instance really ended up in the expected state.
+# Molecule calls this playbook with `molecule verify`.
+- name: Verify
+  hosts: all
+  gather_facts: false # Quicker, if you do not need facts
+  vars_files:
+    - vars.yml
+  tasks:
+    - name: Assert flag file exists
+      ansible.builtin.stat:
+        path: "{{ example_flag_file }}"
+      register: flag_stat
+      failed_when: not flag_stat.stat.exists

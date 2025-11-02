@@ -1,0 +1,60 @@
+---
+
+- name: Create
+  hosts: localhost
+  connection: local
+  gather_facts: false
+  # no_log: "{{ molecule_no_log }}"
+  vars_files:
+    - vars.yml
+  tasks:
+    - name: Deploy tofu project
+      ansible.builtin.git:
+        repo: "{{ tofu_project_repo }}"
+        dest: "{{ lookup('env', 'MOLECULE_EPHEMERAL_DIRECTORY') }}/tofu_project"
+        version: "{{ tofu_project_version }}"
+
+    - name: Init tofu project
+      ansible.builtin.command:
+        cmd: '/usr/bin/tofu init -no-color'
+        chdir: "{{ lookup('env', 'MOLECULE_EPHEMERAL_DIRECTORY') }}/tofu_project"
+
+    - name: Deploy test vm
+      community.general.terraform:
+        binary_path: /usr/bin/tofu
+        project_path: "{{ lookup('env', 'MOLECULE_EPHEMERAL_DIRECTORY') }}/tofu_project"
+        variables:
+          distro: "{{ item.name }}"
+          template_id: "{{ item.image }}"
+          scenario: "{{ lookup('env', 'MOLECULE_SCENARIO_NAME') }}"
+          proxmox_user: "{{ proxmox_user }}"
+          proxmox_password: "{{ proxmox_password }}"
+      loop: "{{ molecule_yml.platforms }}"
+      register: server
+
+    - name: Create instance config
+      when: server.changed | default(false) | bool  # noqa no-handler
+      block:
+        - name: Populate instance config dict  # noqa jinja
+          ansible.builtin.set_fact:
+            instance_conf_dict:
+              instance: "{{ item.outputs.vmid.value }}"
+              address: "{{ item.outputs.ipv4_address.value }}"
+              user: "{{ ssh_user }}"
+              port: "{{ ssh_port }}"
+              identity_file: "{{ ssh_privkey_path }}"
+          loop: "{{ server.results }}"
+          register: instance_config_dict
+
+        - name: Convert instance config dict to a list
+          ansible.builtin.set_fact:
+            instance_conf: "{{ instance_config_dict.results | map(attribute='ansible_facts.instance_conf_dict') | list }}"
+
+        - name: Dump instance config
+          ansible.builtin.copy:
+            content: |
+              # Molecule managed
+
+              {{ instance_conf | to_json | from_json | to_yaml }}
+            dest: "{{ molecule_instance_config }}"
+            mode: "0600"
