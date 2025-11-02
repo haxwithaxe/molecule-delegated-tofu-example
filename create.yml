@@ -29,6 +29,8 @@
           scenario: "{{ lookup('env', 'MOLECULE_SCENARIO_NAME') }}"
           proxmox_user: "{{ proxmox_user }}"
           proxmox_password: "{{ proxmox_password }}"
+          node: "{{ proxmox_target_node }}"
+          storage_pool: "{{ proxmox_target_storage_pool }}"
       loop: "{{ molecule_yml.platforms }}"
       register: server
 

@@ -10,7 +10,7 @@
     - name: Destroy test vms
       community.general.terraform:
         binary_path: /usr/bin/tofu
-        project_path: "{{ lookup('env', 'HOME') }}/.molecule/opentofu/test_vms"
+        project_path: "{{ lookup('env', 'MOLECULE_EPHEMERAL_DIRECTORY') }}/tofu_project"
         state: absent
         variables:
           distro: "{{ item.name }}"
@@ -18,6 +18,8 @@
           scenario: "{{ lookup('env', 'MOLECULE_SCENARIO_NAME') }}"
           proxmox_user: "{{ proxmox_user }}"
           proxmox_password: "{{ proxmox_password }}"
+          node: "{{ proxmox_target_node }}"
+          storage_pool: "{{ proxmox_target_storage_pool }}"
       loop: "{{ molecule_yml.platforms }}"
       register: server
 

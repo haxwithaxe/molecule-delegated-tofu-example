@@ -6,6 +6,8 @@ ssh_port: 22
 ssh_privkey_path: "{{ lookup('env', 'HOME') }}/.ssh/id_ed25519"
 proxmox_user: <molecule-user>@pve
 proxmox_password: <molecule-user password>
+proxmox_target_node: <node name>
+proxmox_target_storage_pool: <storage pool name>
 tofu_project_repo: https://github.com/haxwithaxe/tofu-proxmox-molecule-delegate.git
 tofu_project_version: example
 
