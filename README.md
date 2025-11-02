@@ -22,5 +22,5 @@
 - https://blog.stephane-robert.info/post/ansible-molecule-delegated-driver-terraform/
   - It's in french but the yaml is pretty clean and clear.
   - A more complex example than this one.
-- https://github.com/haxwithaxe/tofu-proxmox-molecule-delegate.git `example` branch is guaranteed to work with this example assuming you have a proxmox machine with the permissions setup for the `proxmox_user`.
+- https://github.com/haxwithaxe/tofu-proxmox-molecule-delegate.git `example` branch is going to work with this example assuming you have a proxmox machine with the permissions setup for the `proxmox_user`.
   - https://search.opentofu.org/provider/telmate/proxmox/latest The tofu proxmox provider used in the above tofu project.
