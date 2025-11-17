@@ -13,26 +13,24 @@
         repo: "{{ tofu_project_repo }}"
         dest: "{{ lookup('env', 'MOLECULE_EPHEMERAL_DIRECTORY') }}/tofu_project"
         version: "{{ tofu_project_version }}"
-
-    - name: Init tofu project
-      ansible.builtin.command:
-        cmd: '/usr/bin/tofu init -no-color'
-        chdir: "{{ lookup('env', 'MOLECULE_EPHEMERAL_DIRECTORY') }}/tofu_project"
+      register: tofu_project_deploy
+      no_log: yes
 
     - name: Deploy test vm
       community.general.terraform:
         binary_path: /usr/bin/tofu
         project_path: "{{ lookup('env', 'MOLECULE_EPHEMERAL_DIRECTORY') }}/tofu_project"
+        force_init: "{{ tofu_project_deploy.changed }}"
         variables:
-          distro: "{{ item.name }}"
-          template_id: "{{ item.image }}"
-          scenario: "{{ lookup('env', 'MOLECULE_SCENARIO_NAME') }}"
-          proxmox_user: "{{ proxmox_user }}"
+          distro: "{{ item.name | ansible.builtin.replace('_', '-') }}"
+          molecule_instance: "{{ item.name }}"
+          molecule_scenario: "{{ lookup('env', 'MOLECULE_SCENARIO_NAME') | ansible.builtin.replace('_', '-') }}"
           proxmox_password: "{{ proxmox_password }}"
-          node: "{{ proxmox_target_node }}"
-          storage_pool: "{{ proxmox_target_storage_pool }}"
+          proxmox_template_id: "{{ item.image }}"
+          proxmox_user: "{{ proxmox_user }}"
       loop: "{{ molecule_yml.platforms }}"
       register: server
+      no_log: yes
 
     - name: Create instance config
       when: server.changed | default(false) | bool  # noqa no-handler
@@ -40,7 +38,7 @@
         - name: Populate instance config dict  # noqa jinja
           ansible.builtin.set_fact:
             instance_conf_dict:
-              instance: "{{ item.outputs.vmid.value }}"
+              instance: "{{ item.outputs.instance.value }}"
               address: "{{ item.outputs.ipv4_address.value }}"
               user: "{{ ssh_user }}"
               port: "{{ ssh_port }}"
@@ -60,3 +58,28 @@
               {{ instance_conf | to_json | from_json | to_yaml }}
             dest: "{{ molecule_instance_config }}"
             mode: "0600"
+
+    # In case this is a rerun and server.results are empty
+    - name: Load instance config
+      ansible.builtin.slurp:
+        src: "{{ molecule_instance_config }}"
+      register: molecule_instance_config_slurp
+
+    - name: Add hosts
+      ansible.builtin.add_host:
+        name: "{{ item.instance }}"
+        ansible_host: "{{ item.address }}"
+        ansible_user: "{{ item.user }}"
+        ansible_ssh_port: "{{ item.port }}"
+        ansible_ssh_private_key_file: "{{ item.identity_file }}"
+        groups: all
+      loop: "{{ molecule_instance_config_slurp.content | b64decode | from_yaml | list }}"
+
+    - name: Wait for VMs to be ready
+      ansible.builtin.wait_for:
+        port: "{{ ssh_port }}"
+        host: "{{ item.address }}"
+        search_regex: OpenSSH
+        delay: 10
+        timeout: 300
+      loop: "{{ molecule_instance_config_slurp.content | b64decode | from_yaml | list }}"

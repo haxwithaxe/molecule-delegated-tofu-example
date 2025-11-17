@@ -7,21 +7,30 @@
   vars_files:
     - vars.yml
   tasks:
+    - name: Deploy tofu project
+      ansible.builtin.git:
+        repo: "{{ tofu_project_repo }}"
+        dest: "{{ lookup('env', 'MOLECULE_EPHEMERAL_DIRECTORY') }}/tofu_project"
+        version: "{{ tofu_project_version }}"
+      register: tofu_project_deploy
+      no_log: yes
+
     - name: Destroy test vms
       community.general.terraform:
         binary_path: /usr/bin/tofu
         project_path: "{{ lookup('env', 'MOLECULE_EPHEMERAL_DIRECTORY') }}/tofu_project"
         state: absent
+        force_init: "{{ tofu_project_deploy.changed }}"
         variables:
-          distro: "{{ item.name }}"
-          template_id: "{{ item.image }}"
-          scenario: "{{ lookup('env', 'MOLECULE_SCENARIO_NAME') }}"
-          proxmox_user: "{{ proxmox_user }}"
+          distro: "{{ item.name | ansible.builtin.replace('_', '-') }}"
+          molecule_instance: "{{ item.name }}"
+          molecule_scenario: "{{ lookup('env', 'MOLECULE_SCENARIO_NAME') | ansible.builtin.replace('_', '-') }}"
           proxmox_password: "{{ proxmox_password }}"
-          node: "{{ proxmox_target_node }}"
-          storage_pool: "{{ proxmox_target_storage_pool }}"
+          proxmox_template_id: "{{ item.image }}"
+          proxmox_user: "{{ proxmox_user }}"
       loop: "{{ molecule_yml.platforms }}"
       register: server
+      no_log: yes
 
     # Mandatory configuration for Molecule to function.
 
